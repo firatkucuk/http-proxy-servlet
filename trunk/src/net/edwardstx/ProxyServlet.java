@@ -60,27 +60,27 @@ public class ProxyServlet extends HttpServlet {
     /**
      * Key for redirect location header.
      */
-    private static final String STRING_LOCATION_HEADER = "Location";
+    private static final String LOCATION_HEADER = "Location";
 
     /**
      * Key for content type header.
      */
-    private static final String STRING_CONTENT_TYPE_HEADER_NAME = "Content-Type";
+    private static final String CONTENT_TYPE_HEADER_NAME = "Content-Type";
 
     /**
      * Key for content length header.
      */
-    private static final String STRING_CONTENT_LENGTH_HEADER_NAME = "Content-Length";
+    private static final String CONTENT_LENGTH_HEADER_NAME = "Content-Length";
 
     /**
      * Key for host header
      */
-    private static final String STRING_HOST_HEADER_NAME = "Host";
+    private static final String HOST_HEADER_NAME = "Host";
 
     /**
      * The directory to use to temporarily store uploaded files
      */
-    private static final File FILE_UPLOAD_TEMP_DIRECTORY = new File(System.getProperty("java.io.tmpdir"));
+    private static final File UPLOAD_TEMP_DIRECTORY = new File(System.getProperty("java.io.tmpdir"));
     
     // Proxy host params
 
@@ -139,14 +139,13 @@ public class ProxyServlet extends HttpServlet {
 
         if (newProxyPath != null && !newProxyPath.isEmpty()) {
         	proxyPath = newProxyPath;
-            this.setProxyPath(newProxyPath);
         }
 
         // Get the maximum file upload size if specified
-        String stringMaxFileUploadSize = servletConfig.getInitParameter("maxFileUploadSize");
+        String newMaxFileUploadSize = servletConfig.getInitParameter("maxFileUploadSize");
 
-        if(stringMaxFileUploadSize != null && stringMaxFileUploadSize.length() > 0) {
-            this.setMaxFileUploadSize(Integer.parseInt(stringMaxFileUploadSize));
+        if(newMaxFileUploadSize != null && !newMaxFileUploadSize.isEmpty()) {
+        	maxFileUploadSize = Integer.parseInt(newMaxFileUploadSize);
         }
     }
 
@@ -168,8 +167,10 @@ public class ProxyServlet extends HttpServlet {
 
         // Create a GET request
         GetMethod getMethodProxyRequest = new GetMethod(this.getProxyURL(httpServletRequest));
+
         // Forward the request headers
         setProxyRequestHeaders(httpServletRequest, getMethodProxyRequest);
+
         // Execute the proxy request
         this.executeProxyRequest(getMethodProxyRequest, httpServletRequest, httpServletResponse);
     }
@@ -222,7 +223,7 @@ public class ProxyServlet extends HttpServlet {
         DiskFileItemFactory diskFileItemFactory = new DiskFileItemFactory();
         // Set factory constraints
         diskFileItemFactory.setSizeThreshold(this.getMaxFileUploadSize());
-        diskFileItemFactory.setRepository(FILE_UPLOAD_TEMP_DIRECTORY);
+        diskFileItemFactory.setRepository(UPLOAD_TEMP_DIRECTORY);
         // Create a new file upload handler
         ServletFileUpload servletFileUpload = new ServletFileUpload(diskFileItemFactory);
         // Parse the request
@@ -267,7 +268,7 @@ public class ProxyServlet extends HttpServlet {
             // request. However, we are creating a new request with a new chunk
             // boundary string, so it is necessary that we re-set the
             // content-type string to reflect the new chunk boundary string
-            postMethodProxyRequest.setRequestHeader(STRING_CONTENT_TYPE_HEADER_NAME, multipartRequestEntity.getContentType());
+            postMethodProxyRequest.setRequestHeader(CONTENT_TYPE_HEADER_NAME, multipartRequestEntity.getContentType());
         } catch (FileUploadException fileUploadException) {
             throw new ServletException(fileUploadException);
         }
@@ -284,22 +285,25 @@ public class ProxyServlet extends HttpServlet {
      * @param httpServletRequest The {@link HttpServletRequest} that contains
      *                            the POST data to be sent via the {@link PostMethod}
      */    
-    @SuppressWarnings("unchecked")
     private void handleStandardPost(PostMethod postMethodProxyRequest, HttpServletRequest httpServletRequest) {
+
         // Get the client POST data as a Map
         Map<String, String[]> mapPostParameters = httpServletRequest.getParameterMap();
+       
         // Create a List to hold the NameValuePairs to be passed to the PostMethod
         List<NameValuePair> listNameValuePairs = new ArrayList<NameValuePair>();
+
         // Iterate the parameter names
-        for(String stringParameterName : mapPostParameters.keySet()) {
+        for (String stringParameterName : mapPostParameters.keySet()) {
             // Iterate the values for each parameter name
             String[] stringArrayParameterValues = mapPostParameters.get(stringParameterName);
-            for(String stringParamterValue : stringArrayParameterValues) {
+            for (String stringParamterValue : stringArrayParameterValues) {
                 // Create a NameValuePair and store in list
                 NameValuePair nameValuePair = new NameValuePair(stringParameterName, stringParamterValue);
                 listNameValuePairs.add(nameValuePair);
             }
         }
+
         // Set the proxy request POST data 
         postMethodProxyRequest.setRequestBody(listNameValuePairs.toArray(new NameValuePair[] { }));
     }
@@ -331,13 +335,13 @@ public class ProxyServlet extends HttpServlet {
         // Check if the proxy response is a redirect
         // The following code is adapted from org.tigris.noodle.filters.CheckForRedirect
         // Hooray for open source software
-        if(intProxyResponseCode >= HttpServletResponse.SC_MULTIPLE_CHOICES /* 300 */
+        if (intProxyResponseCode >= HttpServletResponse.SC_MULTIPLE_CHOICES /* 300 */
                 && intProxyResponseCode < HttpServletResponse.SC_NOT_MODIFIED /* 304 */) {
             String stringStatusCode = Integer.toString(intProxyResponseCode);
-            String stringLocation = httpMethodProxyRequest.getResponseHeader(STRING_LOCATION_HEADER).getValue();
+            String stringLocation = httpMethodProxyRequest.getResponseHeader(LOCATION_HEADER).getValue();
             if(stringLocation == null) {
                     throw new ServletException("Recieved status code: " + stringStatusCode 
-                            + " but no " +  STRING_LOCATION_HEADER + " header was found in the response");
+                            + " but no " +  LOCATION_HEADER + " header was found in the response");
             }
             // Modify the redirect to go to this proxy servlet rather that the proxied host
             String stringMyHostName = httpServletRequest.getServerName();
@@ -354,7 +358,7 @@ public class ProxyServlet extends HttpServlet {
             // header and the data on disk has not changed; server
             // responds w/ a 304 saying I'm not going to send the
             // body because the file has not changed.
-            httpServletResponse.setIntHeader(STRING_CONTENT_LENGTH_HEADER_NAME, 0);
+            httpServletResponse.setIntHeader(CONTENT_LENGTH_HEADER_NAME, 0);
             httpServletResponse.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
             return;
         }
@@ -406,7 +410,7 @@ public class ProxyServlet extends HttpServlet {
         Enumeration enumerationOfHeaderNames = httpServletRequest.getHeaderNames();
         while(enumerationOfHeaderNames.hasMoreElements()) {
             String stringHeaderName = (String) enumerationOfHeaderNames.nextElement();
-            if(stringHeaderName.equalsIgnoreCase(STRING_CONTENT_LENGTH_HEADER_NAME))
+            if(stringHeaderName.equalsIgnoreCase(CONTENT_LENGTH_HEADER_NAME))
                 continue;
             // As per the Java Servlet API 2.5 documentation:
             //        Some headers, such as Accept-Language can be sent by clients
@@ -419,7 +423,7 @@ public class ProxyServlet extends HttpServlet {
                 // In case the proxy host is running multiple virtual servers,
                 // rewrite the Host header to ensure that we get content from
                 // the correct virtual server
-                if(stringHeaderName.equalsIgnoreCase(STRING_HOST_HEADER_NAME)){
+                if(stringHeaderName.equalsIgnoreCase(HOST_HEADER_NAME)){
                     stringHeaderValue = getProxyHostAndPort();
                 }
                 Header header = new Header(stringHeaderName, stringHeaderValue);
