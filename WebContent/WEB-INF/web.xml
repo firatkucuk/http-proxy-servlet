@@ -10,7 +10,7 @@
 
 		<init-param>
 			<param-name>proxyHost</param-name>
-			<param-value>www.yahoo.com</param-value>
+			<param-value>edwardstx.net</param-value>
 		</init-param>
 		<init-param>
 			<param-name>proxyPort</param-name>
@@ -18,7 +18,7 @@
 		</init-param>
 		<init-param>
 			<param-name>protocol</param-name>
-			<param-value>https</param-value>
+			<param-value>http</param-value>
 		</init-param>
 		<init-param>
 			<param-name>proxyPath</param-name>
