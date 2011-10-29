@@ -1,8 +1,8 @@
 package net.edwardstx;
 
 /* ********************************************************************************************** *\
- * Project        : GidaPort
- * Document       : Messaging.java
+ * Project        : http-proxy-servlet
+ * Document       : ProxyServlet.java
  * Authors        : Jason EDWARDS, Fırat KÜÇÜK
  * =================================================================================================
  * HTTP Proxy Servlet
@@ -155,24 +155,23 @@ public class ProxyServlet extends HttpServlet {
     
     /**
      * Performs an HTTP GET request
-     * @param httpServletRequest The {@link HttpServletRequest} object passed
-     *                            in by the servlet engine representing the
-     *                            client request to be proxied
+     * @param httpServletRequest The {@link HttpServletRequest} object passed in by the servlet
+     * engine representing the client request to be proxied
      * @param httpServletResponse The {@link HttpServletResponse} object by which
-     *                             we can send a proxied response to the client 
+     * we can send a proxied response to the client 
      */
     @Override
     public void doGet (HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse)
             throws IOException, ServletException {
 
         // Create a GET request
-        GetMethod getMethodProxyRequest = new GetMethod(this.getProxyURL(httpServletRequest));
+        GetMethod proxyRequest = new GetMethod(getProxyURL(httpServletRequest));
 
         // Forward the request headers
-        setProxyRequestHeaders(httpServletRequest, getMethodProxyRequest);
+        setProxyRequestHeaders(httpServletRequest, proxyRequest);
 
         // Execute the proxy request
-        this.executeProxyRequest(getMethodProxyRequest, httpServletRequest, httpServletResponse);
+        executeProxyRequest(proxyRequest, httpServletRequest, httpServletResponse);
     }
     
     
@@ -212,9 +211,9 @@ public class ProxyServlet extends HttpServlet {
      * Sets up the given {@link PostMethod} to send the same multipart POST
      * data as was sent in the given {@link HttpServletRequest}
      * @param postMethodProxyRequest The {@link PostMethod} that we are
-     *                                configuring to send a multipart POST request
+     * configuring to send a multipart POST request
      * @param httpServletRequest The {@link HttpServletRequest} that contains
-     *                            the mutlipart POST data to be sent via the {@link PostMethod}
+     * the mutlipart POST data to be sent via the {@link PostMethod}
      */
     @SuppressWarnings("unchecked")
     private void handleMultipartPost(PostMethod postMethodProxyRequest, HttpServletRequest httpServletRequest)
@@ -316,7 +315,7 @@ public class ProxyServlet extends HttpServlet {
      * back to the client via the given {@link HttpServletResponse}
      * @param httpMethodProxyRequest An object representing the proxy request to be made
      * @param httpServletResponse An object by which we can send the proxied
-     *                             response back to the client
+     * response back to the client
      * @throws IOException Can be thrown by the {@link HttpClient}.executeMethod
      * @throws ServletException Can be thrown to indicate that another error has occurred
      */
@@ -400,33 +399,40 @@ public class ProxyServlet extends HttpServlet {
      * the proxy request
      * 
      * @param httpServletRequest The request object representing the client's
-     *                            request to the servlet engine
+     * request to the servlet engine
      * @param httpMethodProxyRequest The request that we are about to send to
-     *                                the proxy host
+     * the proxy host
      */
-    @SuppressWarnings("unchecked")
     private void setProxyRequestHeaders(HttpServletRequest httpServletRequest, HttpMethod httpMethodProxyRequest) {
+
         // Get an Enumeration of all of the header names sent by the client
-        Enumeration enumerationOfHeaderNames = httpServletRequest.getHeaderNames();
-        while(enumerationOfHeaderNames.hasMoreElements()) {
-            String stringHeaderName = (String) enumerationOfHeaderNames.nextElement();
-            if(stringHeaderName.equalsIgnoreCase(CONTENT_LENGTH_HEADER_NAME))
+        Enumeration<String> headerNames = httpServletRequest.getHeaderNames();
+
+        while(headerNames.hasMoreElements()) {
+
+            String headerName = headerNames.nextElement();
+            if (headerName.equalsIgnoreCase(CONTENT_LENGTH_HEADER_NAME))
                 continue;
             // As per the Java Servlet API 2.5 documentation:
             //        Some headers, such as Accept-Language can be sent by clients
             //        as several headers each with a different value rather than
             //        sending the header as a comma separated list.
             // Thus, we get an Enumeration of the header values sent by the client
-            Enumeration enumerationOfHeaderValues = httpServletRequest.getHeaders(stringHeaderName);
-            while(enumerationOfHeaderValues.hasMoreElements()) {
-                String stringHeaderValue = (String) enumerationOfHeaderValues.nextElement();
+
+            Enumeration<String> headerValues = httpServletRequest.getHeaders(headerName);
+
+            while (headerValues.hasMoreElements()) {
+                String headerValue = headerValues.nextElement();
+
                 // In case the proxy host is running multiple virtual servers,
                 // rewrite the Host header to ensure that we get content from
                 // the correct virtual server
-                if(stringHeaderName.equalsIgnoreCase(HOST_HEADER_NAME)){
-                    stringHeaderValue = getProxyHostAndPort();
+
+                if (headerName.equalsIgnoreCase(HOST_HEADER_NAME)){
+                    headerValue = getProxyHostAndPort();
                 }
-                Header header = new Header(stringHeaderName, stringHeaderValue);
+
+                Header header = new Header(headerName, headerValue);
                 // Set the same header on the proxy request
                 httpMethodProxyRequest.setRequestHeader(header);
             }
@@ -439,6 +445,7 @@ public class ProxyServlet extends HttpServlet {
     
     // Accessors
     private String getProxyURL(HttpServletRequest httpServletRequest) {
+
         // Set the protocol to HTTP
         String stringProxyURL = "http://" + this.getProxyHostAndPort();
         // Check if we are proxying to a path other that the document root
@@ -460,36 +467,19 @@ public class ProxyServlet extends HttpServlet {
     
     private String getProxyHostAndPort() {
 
-        if(this.getProxyPort() == 80) {
-            return this.getProxyHost();
+        if(proxyPort == 80) {
+            return proxyHost;
         } else {
-            return this.getProxyHost() + ":" + this.getProxyPort();
+            return proxyHost + ":" + proxyPort;
         }
     }
     
     
-    private String getProxyHost() {
-        return this.proxyHost;
-    }
-    private void setProxyHost(String stringProxyHostNew) {
-        this.proxyHost = stringProxyHostNew;
-    }
-    private int getProxyPort() {
-        return this.proxyPort;
-    }
-    private void setProxyPort(int intProxyPortNew) {
-        this.proxyPort = intProxyPortNew;
-    }
+   
     private String getProxyPath() {
         return this.proxyPath;
     }
-    private void setProxyPath(String stringProxyPathNew) {
-        this.proxyPath = stringProxyPathNew;
-    }
     private int getMaxFileUploadSize() {
         return this.maxFileUploadSize;
-    }
-    private void setMaxFileUploadSize(int intMaxFileUploadSizeNew) {
-        this.maxFileUploadSize = intMaxFileUploadSizeNew;
     }
 }
